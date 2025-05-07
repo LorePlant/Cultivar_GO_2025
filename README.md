@@ -493,7 +493,7 @@ Plot the RDA biplot. In this graphical representation I used _scaling = 2_ to gr
 ```
 # plot Geographic regions
 
-TAB_gen <- data.frame(geno = row.names(scores(RDA_all_enriched , display = "sites")), scores(RDA_all_enriched, display = "sites", scaling = 2))
+TAB_gen <- data.frame(geno = row.names(scores(RDA_all_enriched , display = "sites")), scores(RDA_all_enriched, display = "sites", scaling = "sites"))
 Geno <- merge(TAB_gen, Variables_142WW[, 1:5] ,by="geno")
 TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
 loading_geno_all_enriched_region<-ggplot() +
@@ -510,7 +510,8 @@ loading_geno_all_enriched_region<-ggplot() +
   labs(title = "enriched RDA")
 loading_geno_all_enriched_region
 ```
-![image](https://github.com/user-attachments/assets/2a1b41fd-7d66-480f-9c0f-abf9132994ac)
+![image](https://github.com/user-attachments/assets/d13ec740-e818-4c87-a2cd-c2d0f8108033)
+
 > The biplot shows that environmental differentiation among the 142 truly wild locations follows a latitudinal gradient, with French sites associated with higher summer precipitation, lower temperatures, and greater soil fertility, while Moroccan sites are characterized by higher temperatures, lower precipitation, and reduced fertility.
 
 ## Adaptive landscape projection
