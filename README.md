@@ -474,6 +474,19 @@ maf_values <- apply(GEA_cultivars, 2, calculate_maf)
 maf_threshold <- 0.05
 GEA_cultivars_maf <- GEA_cultivars[, maf_values >= maf_threshold]
 ```
+Run RDA using the selected GEA QTL that are polymorphic across the cultivar populations
+```
+GEA_124<- GEA_lfmm_all_var[, colnames(GEA_lfmm_all_var)%in% colnames(GEA_cultivars_maf)]
+write.table(GEA_124,"GEA_124_WW.txt")
+GEA_124<-read.table("GEA_124_WW.txt")
+
+RDA_all_enriched<-rda(GEA_124 ~ bio2 + bio10 + bio11 + bio15	+ bio18 + bio19 + clay + N+ pH + sand , Variables_142WW)
+summary(eigenvals(RDA_all_enriched, model = "constrained"))
+RsquareAdj(RDA_all_enriched)
+plot(RDA_all_enriched)
+sqrt(vif.cca(RDA_all_enriched))
+```
+Plot the RDA biplot. In this graphical representation I us
 
 
 
