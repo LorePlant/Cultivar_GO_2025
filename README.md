@@ -513,6 +513,101 @@ loading_geno_all_enriched_region
 ![image](https://github.com/user-attachments/assets/2a1b41fd-7d66-480f-9c0f-abf9132994ac)
 > The biplot shows that environmental differentiation among the 142 truly wild locations follows a latitudinal gradient, with French sites associated with higher summer precipitation, lower temperatures, and greater soil fertility, while Moroccan sites are characterized by higher temperatures, lower precipitation, and reduced fertility.
 
+## Adaptive landscape projection
+I leveraged the enriched RDA model constructed using only the 142 wild western samples to predict the adaptive value of each spatial pixel within the olive niche.
+
+As fist step lets upload the raster files previously clipped using niche model raster in QGIS
+
+```
+library(raster)
+library("readxl")
+
+
+bio2<- raster(paste("D:/raster files/Current_ENM_clipped_biova/bio2_current_masked.tif"))
+bio10<- raster(paste("D:/raster files/Current_ENM_clipped_biova/bio10_current_masked.tif"))
+bio11<- raster(paste("D:/raster files/Current_ENM_clipped_biova/bio11_current_masked.tif"))
+bio15<- raster(paste("D:/raster files/Current_ENM_clipped_biova/bio15_current_masked.tif"))
+bio18<- raster(paste("D:/raster files/Current_ENM_clipped_biova/bio18_current_masked.tif"))
+bio19<- raster(paste("D:/raster files/Current_ENM_clipped_biova/bio19_current_masked.tif"))
+soilN<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilN.tif"))
+soilpH<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilpH.tif"))
+
+soilclay<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilclay.tif"))
+soilsand<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilsand.tif"))
+
+names(bio2) = 'bio2'
+names(bio10) = 'bio10'
+names(bio11) = 'bio11'
+names(bio15) = 'bio15'
+names(bio18) = 'bio18'
+names(bio19) = 'bio19'
+names(soilN ) = 'N'
+names(soilpH) = 'pH'
+names(soilclay) = 'clay'
+names(soilsand) = 'sand'
+
+
+#alignment of soil rasters with bioclimatic variables
+
+soilN <- resample(soilN, bio2, method="bilinear")
+writeRaster(soilN, "resampled_soilN.tif", format="GTiff", overwrite=TRUE)
+
+soilpH<- resample(soilpH, bio2, method="bilinear")
+writeRaster(soilpH, "D:/raster files/Current_ENM_clipped_biova/resampled_soilpH.tif", format="GTiff", overwrite=TRUE)
+
+soilclay <- resample(soilclay, bio2, method="bilinear")
+writeRaster(soilclay, "D:/raster files/Current_ENM_clipped_biova/resampled_soilclay.tif", format="GTiff", overwrite=TRUE)
+
+soilsand <- resample(soilsand, bio2, method="bilinear")
+writeRaster(soilclay, "D:/raster files/Current_ENM_clipped_biova/resampled_soilsand.tif", format="GTiff", overwrite=TRUE)
+
+#stack the different raster file
+ras_current_var<-stack(c(bio2,bio10, bio11, bio15, bio18, bio19, soilclay,soilN,soilpH, soilsand))
+plot(ras_current_var, 
+     xlim = c(-10, 12), 
+     ylim = c(27, 50))
+```
+>in this specific code chunk we can find the function _resample_ that I used to allign soil rasters with the bioclim raster
+
+Transform the stacked raster in table and use the previous environmental scaling factor to scale the pixel table.
+NB: clay, pH; N and sand were adjusted according to the previous RDA model. In particular clay, pH, sand are divided by 10 a Nitrigen is dividied by 100.
+Subsequently the environlental matrix is scaled using the mean (center) and standard deviation (scale) of the environmental variables of the 142 reference population
+
+```
+pixel <- as.data.frame(rasterToPoints(ras_current_var))
+pixel <- data.frame(x=pixel$x, y=pixel$y, bio2=pixel$bio2,bio10=pixel$bio10,bio11=pixel$bio11,bio15=pixel$bio15,bio18=pixel$bio18,bio19=pixel$bio19,clay=pixel$clay/10,N=pixel$N/100,pH=pixel$pH/10,sand=pixel$sand/10)
+pixel<-na.omit(pixel)
+pixel<- pixel[pixel$x>-10, ]
+pixel_env<- pixel%>% dplyr::select(bio2, bio10, bio11, bio15, bio18, bio19,clay, N, pH, sand)
+
+scaled_pixel <- scale(pixel_env, center = env_center, scale = env_scale)
+scaled_pixel<-as.data.frame(scaled_pixel)
+```
+Used the RDA model (_RDA_142WW_enriched_) to predict pixel adaptive value (position in the RDA space). 
+I used the _predict_ function of _vegan_ package _type="lc"_. 
+
+This function allows to compute the site (pixel) scores  as a **linear combination of environmental variables**:
+
+$$
+LC_i = \sum_{j} (X_{ij} \cdot b_j)
+$$
+
+Where:
+- `LC_i` is the linear constrained score for site `i`,
+- `X_{ij}` is the value of environmental variable `j` for site `i`,
+- `b_j` is the regression coefficient for environmental variable `j`.
+
+```
+#prediction of pixel in the RDA space
+scaled_pixel_LC <- predict(RDA_all_enriched, newdata=scaled_pixel, type="lc", scaling  = "sites")
+TAB_pixel_LC<- data.frame(lat = pixel$y, long = pixel$x, scaled_pixel_LC)
+TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
+```
+>NB _scaling = "sites_ is only used for graphical representation. For the prediction of Genomic Offset run the _predict_ function without remouving the _scaling_ option
+
+![image](https://github.com/user-attachments/assets/587c2a14-cf53-4d79-b0ef-e68801acaac7)
+
+
 
 
 
