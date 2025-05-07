@@ -420,6 +420,8 @@ manhattan(Manhattan_all, col = c("darkgreen", "gray60"),genomewideline = 5)
 hist(Manhattan_all$P)
 dev.off()
 ```
+![image](https://github.com/user-attachments/assets/c4d42434-ab6d-40da-999c-2213da576e2a)
+
 In total we identified 255 QTLs
 
 # RDA Genomic offset model
@@ -486,7 +488,31 @@ RsquareAdj(RDA_all_enriched)
 plot(RDA_all_enriched)
 sqrt(vif.cca(RDA_all_enriched))
 ```
-Plot the RDA biplot. In this graphical representation I us
+Plot the RDA biplot. In this graphical representation I used _scaling = 2_ to graphically represent the location points.
+
+```
+# plot Geographic regions
+
+TAB_gen <- data.frame(geno = row.names(scores(RDA_all_enriched , display = "sites")), scores(RDA_all_enriched, display = "sites", scaling = 2))
+Geno <- merge(TAB_gen, Variables_142WW[, 1:5] ,by="geno")
+TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
+loading_geno_all_enriched_region<-ggplot() +
+  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), size=0.6) +
+  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), size=0.6) +
+  geom_point(data = Geno, aes(x=RDA1, y=RDA2, fill = region), size = 2.5, shape = 21, color = "black", stroke = 0.8) +
+  scale_fill_manual(values = c("lightblue","darkgreen", "darkorange")) +
+  geom_segment(data = TAB_var, aes(xend=RDA1*2, yend=RDA2*2, x=0, y=0), colour="black", linewidth =0.15, linetype=1, arrow=arrow(length = unit(0.02, "npc"))) +
+  geom_label_repel(data = TAB_var, aes(x=RDA1*2, y=RDA2*2, label = row.names(TAB_var)), size = 3.2, family = "Times") +
+  xlab("RDA 1: 68%") + ylab("RDA 2: 11%") +
+  guides(color=guide_legend(title="Latitude gradient")) +
+  theme_bw(base_size = 11, base_family = "Times") +
+  theme(panel.background = element_blank(), legend.background = element_blank(), panel.grid = element_blank(), plot.background = element_blank(), legend.text=element_text(size=rel(.8)), strip.text = element_text(size=11))+
+  labs(title = "enriched RDA")
+loading_geno_all_enriched_region
+```
+![image](https://github.com/user-attachments/assets/2a1b41fd-7d66-480f-9c0f-abf9132994ac)
+> The biplot shows that environmental differentiation among the 142 truly wild locations follows a latitudinal gradient, with French sites associated with higher summer precipitation, lower temperatures, and greater soil fertility, while Moroccan sites are characterized by higher temperatures, lower precipitation, and reduced fertility.
+
 
 
 
