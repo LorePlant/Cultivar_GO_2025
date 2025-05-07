@@ -361,3 +361,119 @@ sqrt(vif.cca(RDAgeo_env))
 |  bio2    |   bio10   |   bio11  |  bio15  |   bio18  |   bio19  |clay    |   N  |    pH  |     sand |
 |---------|----------|---------|----------|-----------|----------|-------|-------|---------|--------|
 1.648260 |2.132844| 2.717164| 3.642094| 2.693061 |2.360481|3.067049 |2.399268 |1.567922| 2.776405|
+
+
+## Genotype Environment Association (GEA analysis)
+
+The GEA analysis enabled the identification of specific SNP markers associated with multivariate environmental variation, aiming to detect genomic signatures of local adaptation. To achieve this, we used the LFMM approach (https://doi.org/10.1093/molbev/msz008). This model estimates the effects of latent factors related to demographic history and incorporates them into a linear model to identify associations with individual environmental variables. Significant values for each environmental variable were then combined using a squared-max transformation, resulting in a single P-value for each marker
+
+To beggining with lets filter for minor allele frequencies maf>5%
+```
+Y <- genoWW
+# Function to calculate MAF for each column (SNP)
+calculate_maf <- function(geno_col) {
+  geno_col <- na.omit(geno_col)
+  allele_freq <- sum(geno_col) / (2 * length(geno_col))  # assumes diploid, genotypes 0/1/2
+  maf <- min(allele_freq, 1 - allele_freq)
+  return(maf)
+}
+
+# Apply function to each SNP (column)
+maf_values <- apply(genoWW, 2, calculate_maf)
+# Filter threshold, e.g., keep SNPs with MAF >= 0.05
+maf_threshold <- 0.05
+genoWW_maf <- genoWW[, maf_values >= maf_threshold]
+
+write.table(genoWW_maf,"genoWW_maf.txt")
+genoWW_maf<-read.table("genoWW_maf.txt")
+```
+
+run GEA analysis
+
+```
+Y <- genoWW_maf
+sel_latent<- data.frame(Variables_142WW%>% dplyr::select(bio2, bio10, bio11, bio15, bio18, bio19,clay, N, pH, sand))
+write.env(sel_latent, "latent_all_variable.env")
+X = read.table("latent_all_variable.env")
+
+mod.lfmm2 <- lfmm2(input = Y, env = X, K = 3, effect.sizes = TRUE)
+#get environment effect sizes
+mod.lfmm2@B
+#Define GEA
+pv = lfmm2.test(mod.lfmm2, input = Y, env = X, full = T)
+hist(pv$pvalues)
+```
+We defined a trheshold of log10Pvalue >5
+
+```
+GEA_lfmm <- data.frame(pvalue = pv$pvalues[-log10(pv$pvalue) >5])
+write.csv(GEA_lfmm, "GEA_lfmm_all_var_log5.csv")#selected 255 SNPs
+write.csv(pv$pvalues, "GEA_all_var_lfmm.csv")# all SNPs
+
+#plotting Mhanattan plot using the library qqman
+
+library(qqman)
+Manhattan_all <- read.csv(file = "GEA_all_var_lfmm.csv", header=TRUE) #import the p value result for precipitation
+jpeg(file = "/lustre/rocchettil/Manh_RDA_prec.jpeg")
+manhattan(Manhattan_all, col = c("darkgreen", "gray60"),genomewideline = 5)
+
+hist(Manhattan_all$P)
+dev.off()
+```
+In total we identified 255 QTLs
+
+# RDA Genomic offset model
+
+We used the RDA framework to construct a genomic offset model to predict the adaptation of new spatial locations and novel genotypes (cultivars). To achive this initially we selected among the 255 QTLs those one that are polymorphic across the cultivar population (maf>0.05), obtaining a total of 124 SNPs. Subsequently we used these 124 SNPs to run an enriched RDA.
+
+Define the 124 GEA QTL
+```
+list_255<-read.table("listGEA_255.txt",  header=TRUE)
+GEA_lfmm_255<-  genoWW_maf[, colnames(genoWW_maf)%in% list_255$SNP]
+write.table(GEA_lfmm_255, "GEA_lfmm_all_var_255.txt")
+GEA_lfmm_all_var<-read.table("GEA_lfmm_all_var_255.txt")
+
+GEA_124<- GEA_lfmm_all_var[, colnames(GEA_lfmm_all_var)%in% colnames(GEA_cultivars_maf)]
+write.table(GEA_124,"GEA_124_WW.txt")
+GEA_124<-read.table("GEA_124_WW.txt")
+```
+Selection of polymorphic GEA across cultivars
+```
+geno_cultivar<- read.vcfR("D:/vcf_file_GEA_leccino/Cultivar_319_lec24_DP10_100_miss090_ind085_mac1.vcf.recode.vcf")
+GI <- vcfR2genind(geno_cultivar)#transform file in genind object
+geno_cultivar<-as.data.frame(GI)
+geno_cultivar <- dplyr::select(geno_cultivar, ends_with(".0"))
+
+GEA_lfmm_all_var<-read.table("GEA_lfmm_all_var.txt")
+GEA <-colnames(GEA_lfmm_all_var)
+GEA_geno_cultivar<-dplyr::select(geno_cultivar, all_of(GEA))
+
+#imputation
+for (i in 1:ncol(GEA_geno_cultivar))
+{
+  GEA_geno_cultivar[which(is.na(GEA_geno_cultivar[,i])),i] <- median(GEA_geno_cultivar[-which(is.na(GEA_geno_cultivar[,i])),i], na.rm=TRUE)
+}
+write.table(GEA_geno_cultivar, "GEA_allWW_lfmm_all_cultivars.txt")
+
+
+GEA_cultivars<-read.table("GEA_allWW_lfmm_all_cultivars.txt")
+
+### filtering for MAF in cultivars
+
+# Function to calculate MAF for each column (SNP)
+calculate_maf <- function(geno_col) {
+  geno_col <- na.omit(geno_col)
+  allele_freq <- sum(geno_col) / (2 * length(geno_col))  # assumes diploid, genotypes 0/1/2
+  maf <- min(allele_freq, 1 - allele_freq)
+  return(maf)
+}
+
+# Apply function to each SNP (column)
+maf_values <- apply(GEA_cultivars, 2, calculate_maf)
+# Filter threshold, e.g., keep SNPs with MAF >= 0.05
+maf_threshold <- 0.05
+GEA_cultivars_maf <- GEA_cultivars[, maf_values >= maf_threshold]
+```
+
+
+
