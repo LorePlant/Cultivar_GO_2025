@@ -604,11 +604,183 @@ scaled_pixel_LC <- predict(RDA_all_enriched, newdata=scaled_pixel, type="lc", sc
 TAB_pixel_LC<- data.frame(lat = pixel$y, long = pixel$x, scaled_pixel_LC)
 TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
 ```
->NB _scaling = "sites_ is only used for graphical representation. For the prediction of Genomic Offset run the _predict_ function without remouving the _scaling_ option
+>NB _scaling = "sites_ is only used for graphical representation. For the prediction of Genomic Offset run the _predict_ function without the _scaling_ option
 
 ![image](https://github.com/user-attachments/assets/587c2a14-cf53-4d79-b0ef-e68801acaac7)
 
+## Cultivar Genomic offset
+
+Prepare genotypic datafile for cultivated accessions
+Filter cultivar accessions frol vcf file
+```
+vcftools --vcf /storage/replicated/cirad/projects/CLIMOLIVEMED/results/GenomicOffsets/Lorenzo/Leccino_new_genome24/WC708_lec24_DP10_100_miss090_ind085_mac1.vcf.recode.vcf --keep /storage/replicated/cirad/projects/CLIMOLIVEMED/results/GenomicOffsets/Lorenzo/Leccino_new_genome24/list_cultivars.txt  --recode --recode-INFO-all --out /storage/replicated/cirad/projects/CLIMOLIVEMED/results/GenomicOffsets/Lorenzo/Leccino_new_genome24/Cultivar_319_lec24_DP10_100_miss090_ind085_mac1.vcf
+```
+Upload vcf file in R and filter for GEA QTLs. This procedure was run in the MesoLab cluster
+
+```
+geno_cultivar<- read.vcfR("D:/vcf_file_GEA_leccino/Cultivar_319_lec24_DP10_100_miss090_ind085_mac1.vcf.recode.vcf")
+
+
+GI <- vcfR2genind(geno_cultivar)#transform file in genind object
+geno_cultivar<-as.data.frame(GI)
+geno_cultivar <- dplyr::select(geno_cultivar, ends_with(".0"))
 
 
 
+GEA_lfmm_list<- read.table("GEA_lfmm_all_var_log5 (2).txt", header = T)
+GEA_lfmm_all_var<-  genoWW_maf[, colnames(genoWW_maf)%in% GEA_lfmm_list$SNP]
+write.table(GEA_lfmm_all_var, "GEA_lfmm_all_var.txt")
+GEA_lfmm_all_var<-read.table("GEA_lfmm_all_var.txt")
+list_bonf<-read.table("GEA_lfmm_all_var_Bonferroni.txt")
+GEA_lfmm_bonf<-  GEA_lfmm_all_var[, colnames(GEA_lfmm_all_var)%in% list_bonf$x]
+
+GEA <-colnames(GEA_lfmm_all_var)
+GEA_geno_cultivar<-dplyr::select(geno_cultivar, all_of(GEA))
+
+#imputation
+for (i in 1:ncol(GEA_geno_cultivar))
+{
+  GEA_geno_cultivar[which(is.na(GEA_geno_cultivar[,i])),i] <- median(GEA_geno_cultivar[-which(is.na(GEA_geno_cultivar[,i])),i], na.rm=TRUE)
+}
+
+## save GEA all varible
+write.table(GEA_geno_cultivar, "GEA_allWW_lfmm_all_cultivars.txt")
+
+
+GEA_cultivars<-read.table("GEA_allWW_lfmm_all_cultivars.txt")
+
+### filtering for MAF in cultivars
+
+# Function to calculate MAF for each column (SNP)
+calculate_maf <- function(geno_col) {
+  geno_col <- na.omit(geno_col)
+  allele_freq <- sum(geno_col) / (2 * length(geno_col))  # assumes diploid, genotypes 0/1/2
+  maf <- min(allele_freq, 1 - allele_freq)
+  return(maf)
+}
+
+# Apply function to each SNP (column)
+maf_values <- apply(GEA_cultivars, 2, calculate_maf)
+# Filter threshold, e.g., keep SNPs with MAF >= 0.05
+maf_threshold <- 0.05
+GEA_cultivars_maf <- GEA_cultivars[, maf_values >= maf_threshold]
+```
+Used the enriched RDA model to predict the adaptive value of new genotypes using the function _predict_. The function with _type = "wa"_ estimate the weighted mean value of the genotypes based on its SNP value. 
+
+The site scores are computed as a **weighted average of species (allele) scores**:
+
+$$
+WA_i = \sum_{s} (Y_{is} \cdot u_s)
+$$
+
+Where:
+- `WA_i` is the weighted average site score for site `i`,
+- `Y_{is}` is the abundance (or presence-absence) of species (allele) `s` at site `i`,
+- `u_s` is the species (allele) score for species (allele) `s`.
+
+```
+RDAscore_cul <- predict(RDA_all_enriched, newdata=GEA_cultivars_maf, type="wa")
+RDAscore_cul<-as.data.frame(RDAscore_cul)
+```
+Plot prediction of Wild West and Cultivar in the same RDA biplot
+
+```
+################################# map cultivar and wild in the RDA space
+Tab_cultivar<- data.frame(geno = row.names(RDAscore_cul),RDAscore_cul[,1:2] )
+Tab_cultivar$group<-"cultivars"
+
+RDA_wild<-predict(RDA_all_enriched,newdata =  GEA_124, type = "wa")
+Tab_wild<-data.frame(geno = row.names(RDA_wild),RDA_wild[,1:2])
+Tab_wild$group<-"wild"
+
+TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
+
+wild_cult_pred<-rbind(Tab_wild, Tab_cultivar)
+wild_cult_pred$group <- as.factor(wild_cult_pred$group)
+
+hh <- ggplot() +
+  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), size=0.6) +
+  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), size=0.6) +
+  geom_point(data = wild_cult_pred, aes(x = RDA1, y = RDA2, fill = group, shape = group),size = 2.5, color = "black", stroke = 0.8)+
+  scale_shape_manual(values = c(24,21,21))+
+  scale_fill_manual(values=c('#E69F00',"grey48","lightblue"))+
+  #scale_size_manual(values=c(3,3))+
+  geom_segment(data = TAB_var, aes(xend=RDA1*0.3, yend=RDA2*0.3, x=0, y=0), colour="black", size=0.15, linetype=1, arrow = arrow(length=unit(0.20,"cm"),type = "closed")) +
+  geom_label_repel(data = TAB_var, aes(x=RDA1*0.3, y=RDA2*0.3, label = row.names(TAB_var)), size = 3, family = "Times") +
+  xlab("RDA 1: 68%") + ylab("RDA 2: 11%") +
+  #guides(legend(title="Group")) +
+  theme_bw(base_size = 11, base_family = "Times") +
+  theme(panel.background = element_blank(), legend.background = element_blank(), panel.grid = element_blank(), plot.background = element_blank(), legend.text=element_text(size=rel(.8)), strip.text = element_text(size=11))+
+  labs(title = "predicted Wild and Cultivar with GEAs")
+hh
+```
+![image](https://github.com/user-attachments/assets/aa59112c-3619-4f45-a9c1-67dd569ed539)
+
+As we plotted wildwest and cultivar in the RDA space we can plot them in the PCA space
+
+```
+#PCA
+library(FactoMineR)
+library(factoextra)
+
+GEA_wild_cultivar<-rbind(GEA_124, GEA_cultivars_maf)
+
+res.pcacultivar<-PCA(GEA_wild_cultivar, scale.unit = TRUE, ncp = 5, graph = TRUE)
+ind <- get_pca_ind(res.pcacultivar)
+pca_data <- as.data.frame(ind$coord)
+pca_data_wild<-cbind(pca_data[1:142,], group = Variables_142WW[,3])
+pca_data_wild<-data.frame( geno = rownames(pca_data_wild), pca_data_wild)
+pca_data_cul<-pca_data[143:461, ]
+pca_data_cul$group = "cultivar"
+
+write.table(pca_data_cul,'pca_data_cul.txt')
+pca_data_cul<-read.csv("pca_data_cul.csv")
+pca_data_cul <- pca_data_cul %>%
+  filter_all(all_vars(. != ""))
+
+pca_wild_cult<-rbind(pca_data_wild,pca_data_cul )
+qq<-ggplot() +
+  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
+  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
+  geom_point(data = pca_data, aes(x=Dim.1, y=Dim.2), size = 2.5) +
+  xlab("PC1: 27%") + ylab("PC2: 10%") +
+  guides(color=guide_legend(title="Group")) +
+  theme_bw(base_size = 11, base_family = "Times") +
+  theme(panel.background = element_blank(), legend.background = element_blank(), panel.grid = element_blank(), plot.background = element_blank(), legend.text=element_text(size=rel(.8)), strip.text = element_text(size=11))
+qq
+
+data_pca_flow <- read.delim("PCA_GEA_flow_class_cultivar.txt", 
+                            header = TRUE, 
+                            na.strings = c("NA", ""), 
+                            stringsAsFactors = FALSE, 
+                            fill = TRUE)
+data_pca_flow <- na.omit(data_pca_flow)
+
+qq <- ggplot() +
+  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
+  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
+  geom_point(data = pca_wild_cult, 
+             aes(x = Dim.1, y = Dim.2, fill = group), 
+             size = 3.5, shape = 21, color = "black", stroke = 0.5) +
+  scale_fill_manual(values = c("purple", "darkblue", "lightgrey", "lightblue", "darkgreen", "darkorange")) +
+  xlab("PC1: 15%") + ylab("PC2: 7%") +
+  guides(fill = guide_legend(title = "Group")) +
+  theme_bw(base_size = 11, base_family = "Times") +
+  theme(
+    panel.background = element_blank(), 
+    legend.background = element_blank(), 
+    panel.grid = element_blank(), 
+    plot.background = element_blank(), 
+    legend.text = element_text(size = rel(.8)), 
+    strip.text = element_text(size = 11)
+  )
+
+qq
+
+boxplot(Dim.2 ~ group, data = pca_data_cul)
+model<-lm(Dim.2 ~ group, data = pca_data_cul)
+summary(model)
+```
+![image](https://github.com/user-attachments/assets/ff9beb55-5451-460f-9973-7a77fb4b7f49)
+> The plot shows that among the cultivated group, the genetic diversity explained by GEA QTLs differentiate early genotype from late genotype. Genotypes flowering classes derived from the work of Omar https://www.mdpi.com/2073-4395/12/12/2975
 
