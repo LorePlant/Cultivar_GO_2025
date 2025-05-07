@@ -867,4 +867,4 @@ TAB_pixel_LC$offset <- (FRDA$RDA1 - TAB_pixel_LC$RDA1)^2 * 0.684 +
 map
 ```
 ![image](https://github.com/user-attachments/assets/08801bdc-3003-44cc-a665-9a19d83ad7fb)
-> Here is an example of spatial genomic offset estimated for four cultivars. The two cultivars at the top, Frantoio and Razzaio, originate from the northern shore of the Mediterranean (Tuscany, Italy), while the two at the bottom, Karme and Berri Meslal, originate from southern latitudes in Egypt and Morocco, respectively
+> Here is an example of spatial genomic offset estimated for four cultivars. The two cultivars at the top, Frantoio and Razzaio, originate from the northern shore of the Mediterranean (Tuscany, Italy), while the two at the bottom, Karme and Berri Meslal, originate from southern latitudes in Egypt and Morocco, respectively. The results show that the model effectively captured the adaptive responses along the latitudinal gradient, highlighting that cultivars originating from the northern and southern Mediterranean shores are more adaptive to the northern and southern regions of our study area, respectively
