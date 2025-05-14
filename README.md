@@ -868,5 +868,99 @@ TAB_pixel_LC$offset <- (FRDA$RDA1 - TAB_pixel_LC$RDA1)^2 * 0.684 +
   
 map
 ```
-![image](https://github.com/user-attachments/assets/08801bdc-3003-44cc-a665-9a19d83ad7fb)
+![image](https://github.com/user-attachments/assets/c8b4c02a-5ff1-474b-a52e-451fcfb2d72f)
+
 > Here is an example of spatial genomic offset estimated for four cultivars. The two cultivars at the top, Frantoio and Razzaio, originate from the northern shore of the Mediterranean (Tuscany, Italy), while the two at the bottom, Karme and Berri Meslal, originate from southern latitudes in Egypt and Morocco, respectively. The results show that the model effectively captured the adaptive responses along the latitudinal gradient, highlighting that cultivars originating from the northern and southern Mediterranean shores are more adaptive to the northern and southern regions of our study area, respectively
+
+
+## Offset validation with flowering data from WOGBM
+To validate further validate the spatial GO results of cultivars we used the flowering data derived from the WOGBM published in by Abou-Saaid et al 2022 https://doi.org/10.3390/agronomy12122975. In that study, the authors confirmed that early-flowering cultivars have lower chilling requirements, making them potentially better adapted to warmer climates.
+
+Given the combined influence of chilling and forcing temperatures on floral initiation, our aim was to investigate whether a correlation exists between flowering time and the estimated genomic offset of cultivars at the WOGBM location.
+
+```
+# Define the target latitude and longitude
+target_lat <- 31.816095
+target_long <- -7.60
+
+# Define a tolerance value (small range of acceptable difference)
+tolerance <- 1e-2
+
+# Filter the data using a tolerance for matching
+Marrakech_row <- TAB_pixel_LC %>%
+  filter(abs(lat - target_lat) < tolerance & abs(long - target_long) < tolerance)
+
+Marrakech_row<-as.data.frame(Marrakech_row)
+### offset at marakesh
+
+
+Marrakech_row <- Marrakech_row[1, ]
+
+# Cultivar offset in Marrakesh
+RDAscore_cul$offsetM <- (Marrakech_row$RDA1 - RDAscore_cul$RDA1)^2 * 0.684 + 
+  (Marrakech_row$RDA2 - RDAscore_cul$RDA2)^2 * 0.1095 + 
+  (Marrakech_row$RDA3 - RDAscore_cul$RDA3)^2 * 0.06071 + 
+  (Marrakech_row$RDA4 - RDAscore_cul$RDA4)^2 * 0.03739
+GoMar<-write.table(RDAscore_cul, "Go_Mar.txt")
+```
+Adjust the table with the flowering data from the Abou-Saaid et al 2022 publication
+
+```
+GoMar<-read.csv("GO_marakesh.csv")
+GoMar <- na.omit(GoMar)
+
+boxplot(GO ~ class, data = GoMar)
+library(ggplot2)
+
+ggplot(GoMar, aes(x = class, y = GO, fill = class)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("purple", "darkblue", "lightgrey")) +
+  theme_minimal() +
+  labs(title = "GO by Class",
+       x = "Class",
+       y = "GO") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 0, hjust = 0.5)
+  )
+model <- lm(GO ~ class, data = GoMar)
+
+summary(model)
+
+GoMar$class <- as.factor(GoMar$class)
+ model <- lm(GO ~ class, data = GoMar)
+
+library(multcomp)
+ summary(glht(model, linfct = mcp(class = "Tukey")))
+
+hist(GoMar$FFD)
+abline(v = c(120, 126), col = "red", lwd = 2, lty = 2)
+
+
+plot(GO ~ FFD, data = GoMar)
+
+model <- lm(GO ~ FFD, data = GoMar)
+abline(model, col = "red", lwd = 2)
+summary(model)
+
+ggplot(GoMar, aes(x = FFD, y = GO, fill = class)) +
+  geom_point(shape = 21, size = 2.5, color = "black", alpha = 0.8) +
+  geom_abline(intercept = coef(model)[1], slope = coef(model)[2],
+              color = "red", linetype = "solid", linewidth = 1.2) +
+  scale_fill_manual(values = c("purple", "darkblue", "lightgrey")) +
+  theme_minimal() +
+  labs(title = "GO vs FFD by Class",
+       x = "FFD",
+       y = "GO",
+       fill = "Class") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  )
+```
+![image](https://github.com/user-attachments/assets/8458fd86-255a-4357-8a56-c5d51df12d91)
+
+Results show a significant correlation between flowering time and Genomic offset. While the overall variance explained by the model was modest (R² ≈ 5%), we observed a strong and statistically significant difference between early- and late-flowering cultivar classes.
+Although the overall variance explained was modest, the marked differentiation between early- and late-flowering cultivars supports the biological relevance of the predictions.
+
+Importantly, from the overall GEAs identified in the wild, we filtered those (GEAs) that were also polymorphic within cultivated germplasm. The correlation between these polymorphisms and flowering time suggests that the adaptive variation captured in cultivars may result from multiple evolutionary processes. These include parallel selection under similar environmental pressures, introgression from wild relatives during post-domestication period, and/or balancing selection maintaining functional diversity across both wild and cultivated gene pools.
+
