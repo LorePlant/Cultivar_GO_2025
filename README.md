@@ -535,7 +535,7 @@ soilN<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilN.
 soilpH<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilpH.tif"))
 
 soilclay<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilclay.tif"))
-soilsand<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilsand.tif"))
+soilsand<- raster(paste("D:/raster files/Current_ENM_clipped_biova/resampled_soilsand_1.tif"))
 
 names(bio2) = 'bio2'
 names(bio10) = 'bio10'
@@ -569,7 +569,8 @@ plot(ras_current_var,
      xlim = c(-10, 12), 
      ylim = c(27, 50))
 ```
->in this specific code chunk we can find the function _resample_ that I used to allign soil rasters with the bioclim raster
+>in this specific code chunk the function _resample_ was only used once to generate a new alligned raster. In this case the function allowed to generate new soil raster files that were named _resample_soil_. Once generetaed this new files were opend with the function _raster_ and than stacked all together with the function _stack_
+
 
 Transform the stacked raster in table and use the previous environmental scaling factor to scale the pixel table.
 NB: clay, pH; N and sand were adjusted according to the previous RDA model. In particular clay, pH, sand are divided by 10 a Nitrigen is dividied by 100.
