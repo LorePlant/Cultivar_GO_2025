@@ -373,7 +373,8 @@ Env <- as.data.frame(Env)
 Variables_142WW<-data.frame(geno=dataWild_142W$id,group = dataWild_142W$group, region = dataWild_142W$region, Env )
 
 ```
-Check Variance Inflation Factor of selected environmental variable from RDA model.
+Check Variance Inflation Factor (VIF) of selected environmental variable from RDA model.
+VIF measure how much the variance of a regression coefficient is inflated due to collinearity with all other predictors. We keep variable with VIF<5
 
 ```
 RDAgeo_env <- rda(genoWW_maf ~ bio2+bio10+bio11+	bio15	+ bio18 + bio19 + clay+ N+ pH+ sand , Variables)
