@@ -316,60 +316,27 @@ qq
 ```
 ![image](https://github.com/user-attachments/assets/581a716a-2c28-46c4-a84c-35a2cab53d3f)
 
-## RDA
+## Landscape Dataset preparation
 
-To construct a landscape model with genetic and envirnmental varaible we used the Redundancy Analysis (RDA)approach. As first step we are going to enter the genotypic vcf.file (filtered MAF<0.05) and Environmental variable composed by bioclimatic variables extracted from Chelsa (https://chelsa-climate.org/downloads/) and soil variable extracted from SoilGrid 250 (https://soilgrids.org/). To ensure comparability, the environmental variable distributions will be scaled to achieve a mean of 0 and a standard deviation of 1.
+As first step we are going to imputate the genotypic vcf.file (filtered MAF<0.05). To ensure comparability, the environmental variable distributions will be scaled to achieve a mean of 0 and a standard deviation of 1.
 
 ```
 #enter vcf file
 geno155 <- read.vcfR("D:/vcf_file_GEA_leccino/WC156_lec24_DP10_100_miss090_ind085_mac1_MAF005.vcf.recode.vcf")#import vcf file
 GI <- vcfR2genind(geno155)#transfrom file in genind object
 geno155<-as.data.frame(GI)
-geno155<-geno155%>% select(ends_with(".0"))
+geno155<-geno155%>% dplyr::select(ends_with(".0"))
 #imputation
 for (i in 1:ncol(geno155))
 {
   geno155[which(is.na(geno155[,i])),i] <- median(geno155[-which(is.na(geno155[,i])),i], na.rm=TRUE)
 }
 geno155_data<- write.table(geno155, "geno_155.txt")
-# Wild Environment datafile
+geno155<-read.table("D:/vcf_file_GEA_leccino/geno_155.txt")
 
-#standardize bioclim variable
-data_wild<- read.csv("Env_155_WWE.csv", header = TRUE)
-test_env <- data_wild%>% select(long, lat, bio2, bio10, bio11, bio15, bio18, bio19, clay, N, pH, sand)
-Env <- scale(test_env, center=TRUE, scale=TRUE)
-# Extract the centering values
-env_center <- attr(Env, "scaled:center") #mean of each variable
-# Extract the scaling values
-env_scale <- attr(Env, "scaled:scale") #standard deviation of each variable
-#transform into dataset
-Env <- as.data.frame(Env)
+# filter the 142 wild West and apply maf 0.05
+genoWW<- geno155[rownames(geno155)%in% list142WW$V1, ]
 
-
-#combining geographic, Popstructure, environmental (scaled) variables
-Variables <- data.frame(data_wild$id, data_wild$group,data_wild$region, Env)
-names(Variables)[1]<- paste("geno")
-names(Variables)[2]<- paste("group")
-names(Variables)[3]<- paste("region")
-```
-Check Variance Inflation Factor of selected environmental variable including bioclim and soil variable;
-
-```
-RDAgeo_env <- rda(geno155 ~ bio2+bio10+bio11+	bio15	+ bio18 + bio19 + clay+ N+ pH+ sand , Variables)
-sqrt(vif.cca(RDAgeo_env))
-```
-
-|  bio2    |   bio10   |   bio11  |  bio15  |   bio18  |   bio19  |clay    |   N  |    pH  |     sand |
-|---------|----------|---------|----------|-----------|----------|-------|-------|---------|--------|
-1.648260 |2.132844| 2.717164| 3.642094| 2.693061 |2.360481|3.067049 |2.399268 |1.567922| 2.776405|
-
-
-## Genotype Environment Association (GEA analysis)
-
-The GEA analysis enabled the identification of specific SNP markers associated with multivariate environmental variation, aiming to detect genomic signatures of local adaptation. To achieve this, we used the LFMM approach (https://doi.org/10.1093/molbev/msz008). This model estimates the effects of latent factors related to demographic history and incorporates them into a linear model to identify associations with individual environmental variables. Significant values for each environmental variable were then combined using a squared-max transformation, resulting in a single P-value for each marker
-
-To beggining with lets filter for minor allele frequencies maf>5%
-```
 Y <- genoWW
 # Function to calculate MAF for each column (SNP)
 calculate_maf <- function(geno_col) {
@@ -387,7 +354,40 @@ genoWW_maf <- genoWW[, maf_values >= maf_threshold]
 
 write.table(genoWW_maf,"genoWW_maf.txt")
 genoWW_maf<-read.table("genoWW_maf.txt")
+
+
+# Wild Environment datafile
+
+data_wild<- read.csv("Env_155_WWE.csv", header = TRUE)
+
+list142WW<-read.table("list142WW.txt") #list with 142 wild west
+dataWild_142W <- data_wild[data_wild$id%in% list142WW$V1, ]
+test_env <- dataWild_142W[, c("bio2", "bio10", "bio11", "bio15", "bio18", "bio19", "clay", "N", "pH", "sand")]
+Env <- scale(test_env, center=TRUE, scale=TRUE)
+# Extract the centering values
+env_center <- attr(Env, "scaled:center")
+# Extract the scaling values
+env_scale <- attr(Env, "scaled:scale")
+#transform into dataset
+Env <- as.data.frame(Env)
+Variables_142WW<-data.frame(geno=dataWild_142W$id,group = dataWild_142W$group, region = dataWild_142W$region, Env )
+
 ```
+Check Variance Inflation Factor of selected environmental variable from RDA model.
+
+```
+RDAgeo_env <- rda(genoWW_maf ~ bio2+bio10+bio11+	bio15	+ bio18 + bio19 + clay+ N+ pH+ sand , Variables)
+sqrt(vif.cca(RDAgeo_env))
+```
+
+|  bio2    |   bio10   |   bio11  |  bio15  |   bio18  |   bio19  |clay    |   N  |    pH  |     sand |
+|---------|----------|---------|----------|-----------|----------|-------|-------|---------|--------|
+1.648260 |2.132844| 2.717164| 3.642094| 2.693061 |2.360481|3.067049 |2.399268 |1.567922| 2.776405|
+
+
+## Genotype Environment Association (GEA analysis)
+
+The GEA analysis enabled the identification of specific SNP markers associated with multivariate environmental variation, aiming to detect genomic signatures of local adaptation. To achieve this, we used the LFMM approach (https://doi.org/10.1093/molbev/msz008). This model estimates the effects of latent factors related to demographic history and incorporates them into a linear model to identify associations with individual environmental variables. Significant values for each environmental variable were then combined using a squared-max transformation, resulting in a single P-value for each marker
 
 run GEA analysis
 
