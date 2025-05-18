@@ -318,10 +318,10 @@ qq
 
 ## Landscape Dataset preparation
 
-As first step we are going to imputate the genotypic vcf.file (filtered MAF<0.05). To ensure comparability, the environmental variable distributions will be scaled to achieve a mean of 0 and a standard deviation of 1.
+As first step we are going to imputate the genotypic vcf.file and apply filter of maf 0.05. To ensure comparability, the environmental variable distributions will be scaled to achieve a mean of 0 and a standard deviation of 1.
 
 ```
-#enter vcf file
+#I enter the vcf file I have that ionclude wild east and wild west
 geno155 <- read.vcfR("D:/vcf_file_GEA_leccino/WC156_lec24_DP10_100_miss090_ind085_mac1_MAF005.vcf.recode.vcf")#import vcf file
 GI <- vcfR2genind(geno155)#transfrom file in genind object
 geno155<-as.data.frame(GI)
