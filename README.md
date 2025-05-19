@@ -299,22 +299,28 @@ Similar results are confirmed as well from PCA analysis
 library(FactoMineR)
 library(factoextra)
 
-res.pca708<-PCA(geno708, scale.unit = TRUE, ncp = 5, graph = TRUE)
+res.pca708<-PCA(geno708, scale.unit = FALSE, ncp = 5, graph = TRUE)
 ind708 <- get_pca_ind(res.pca708)
 pca_data708 <- as.data.frame(ind708$coord)
+
 pca_data708<-cbind(popmap, pca_data708)
+
 qq<-ggplot() +
   geom_hline(yintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
   geom_vline(xintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
-  geom_point(data = pca_data708, aes(x=Dim.1, y=Dim.2, color = pop), size = 2.5) +
-  scale_color_manual(values = c("darkgrey", "purple", "darkorange", "darkgreen")) +
+  geom_point(data = pca_data708, 
+             aes(x = Dim.1, y = Dim.2, fill = pop), 
+             size = 3.5, shape = 21, color = "black", stroke = 0.5) +
+  scale_fill_manual(values = c("darkgrey", "purple", "darkorange", "darkgreen")) +
   xlab("PC1: 10%") + ylab("PC2: 5.9%") +
   guides(color=guide_legend(title="Group")) +
   theme_bw(base_size = 11, base_family = "Times") +
   theme(panel.background = element_blank(), legend.background = element_blank(), panel.grid = element_blank(), plot.background = element_blank(), legend.text=element_text(size=rel(.8)), strip.text = element_text(size=11))
 qq
+
 ```
-![image](https://github.com/user-attachments/assets/581a716a-2c28-46c4-a84c-35a2cab53d3f)
+![image](https://github.com/user-attachments/assets/2a983895-2ca7-4ab1-93cf-c069bec1e067)
+
 
 ## Landscape Dataset preparation
 
