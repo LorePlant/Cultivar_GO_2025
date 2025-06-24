@@ -615,6 +615,78 @@ TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
 ```
 >NB _scaling = "sites_ is only used for graphical representation. For the prediction of Genomic Offset run the _predict_ function without the _scaling_ option
 
+Graphical representation using RDA biplot and geographic map
+
+```
+###### mapping adaptive landscape### map of GEA
+
+# Extract RDA values
+a1 <- TAB_pixel_LC$RDA1
+a2 <- TAB_pixel_LC$RDA2
+
+# Compute the distance from the origin
+distance <- sqrt(a1^2 + a2^2)
+
+# Assign colors based on quadrants and the 5th sector (circle radius < 0.5)
+TAB_pixel_LC$color <- ifelse(distance < 0.25, "#717171",  # 5th sector - Purple
+                             ifelse(a1 > 0 & a2 > 0, "#377EB8",  # Quadrant 1 - Red
+                                    ifelse(a1 < 0 & a2 > 0, "red",  # Quadrant 2 - Blue
+                                           ifelse(a1 < 0 & a2 < 0, "#FF7F00",  # Quadrant 3 - Green
+                                                  "limegreen"))))  # Quadrant 4 - Orange
+
+# Update ggplot with quadrant-based colors and 5th sector
+pp <- ggplot() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = gray(0.80), size = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = gray(0.80), size = 0.6) +
+  geom_point(data = TAB_pixel_LC, aes(x = RDA1, y = RDA2, color = color), size = 2) +  # Use sector colors
+  geom_segment(data = TAB_var, aes(xend = RDA1, yend = RDA2, x = 0, y = 0), 
+               colour = "black", size = 0.15, linetype = 1, 
+               arrow = arrow(length = unit(0.20, "cm"), type = "closed")) +
+  geom_label_repel(data = TAB_var, aes(x = RDA1, y = RDA2, label = row.names(TAB_var)), 
+                   size = 4, family = "Times") +
+  xlab("RDA 1: 68%") + 
+  ylab("RDA 2: 11%") +
+  theme_bw(base_size = 9, base_family = "Times") +
+  theme(panel.background = element_blank(), 
+        legend.background = element_blank(), 
+        panel.grid = element_blank(), 
+        plot.background = element_blank(), 
+        legend.text = element_text(size = rel(0.8)), 
+        strip.text = element_text(size = 9)) +
+  scale_color_identity()  # Use predefined colors directly
+
+pp
+
+## plot in geographic map
+
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+# Load geographic boundaries of France, Spain, Morocco, Portugal, and Algeria
+countries <- ne_countries(scale = "medium", country = c("France", "Spain", "Morocco", "Portugal", "Algeria"), returnclass = "sf")
+
+# Remove French Guiana and Atlantic French territories
+countries <- countries[!(countries$geounit %in% c("French Guiana", "Guadeloupe", "Martinique", "Saint Pierre and Miquelon", 
+                                                  "Reunion", "Mayotte", "New Caledonia", "French Polynesia", 
+                                                  "Wallis and Futuna", "Saint Barthelemy", "Saint Martin")), ]
+
+# Convert TAB_pixel_LC to an sf object
+TAB_pixel_LC_sf <- st_as_sf(TAB_pixel_LC, coords = c("long", "lat"), crs = 4326)  # Assumes 'longitude' and 'latitude' columns exist
+# Create the map
+map <- ggplot(data = countries) +
+  geom_sf(fill = "#EBEBEB", color = "black") +  # Countries' borders
+  geom_sf(data = TAB_pixel_LC_sf, aes(color = color), size = 0.05, show.legend = FALSE) +  # Points with custom colors
+  scale_color_identity() +  # Use exact colors from the 'color' column
+  coord_sf(xlim = c(-15, 15), ylim = c(28, 52), expand = FALSE) +  # Set geographic limits
+  theme_minimal() +
+  labs(title = "Adaptive Landscape") +
+  theme(panel.background = element_blank())
+
+#jpeg(file = "C:/Users/rocchetti/Desktop/running RDA GO/adaptive_landscape_rgb.jpeg",width = 18, height = 14, units = "cm", res = 800)
+map
+```
+
 ![image](https://github.com/user-attachments/assets/587c2a14-cf53-4d79-b0ef-e68801acaac7)
 
 ## Cultivar Genomic offset
