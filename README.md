@@ -923,75 +923,67 @@ hh <- ggplot() +
   labs(title = "predicted Wild and Cultivar with GEAs")
 hh
 ```
-![image](https://github.com/user-attachments/assets/aa59112c-3619-4f45-a9c1-67dd569ed539)
+<img width="694" height="485" alt="image" src="https://github.com/user-attachments/assets/5701fdd6-0078-47f2-ab64-1bc5c1d0d1af" />
 
-As we plotted wildwest and cultivar in the RDA space we can plot them in the PCA space
+
+We can combine the cultivar projection wth the spatial pixer projection
 
 ```
-#PCA
-library(FactoMineR)
-library(factoextra)
+###### plot predicted cultivar and spatial pixels in the RDA space
 
-GEA_wild_cultivar<-rbind(GEA_124, GEA_cultivars_maf)
+Tab_cultivar<- data.frame(ID = row.names(RDAscore_cul),RDAscore_cul[,1:2] )
+Tab_cultivar$group<-"cultivars"
+RDA_wild<-predict(RDA_all_enriched,newdata =  scaled_pixel, type = "lc")
+Tab_wild<-data.frame(ID = TAB_pixel_LC$lat,RDA_wild[,1:2])
+Tab_wild$group<-"spatial_point"
 
-res.pcacultivar<-PCA(GEA_wild_cultivar, scale.unit = TRUE, ncp = 5, graph = TRUE)
-ind <- get_pca_ind(res.pcacultivar)
-pca_data <- as.data.frame(ind$coord)
-pca_data_wild<-cbind(pca_data[1:142,], group = Variables_142WW[,3])
-pca_data_wild<-data.frame( geno = rownames(pca_data_wild), pca_data_wild)
-pca_data_cul<-pca_data[143:461, ]
-pca_data_cul$group = "cultivar"
 
-write.table(pca_data_cul,'pca_data_cul.txt')
-pca_data_cul<-read.csv("pca_data_cul.csv")
-pca_data_cul <- pca_data_cul %>%
-  filter_all(all_vars(. != ""))
+TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
 
-pca_wild_cult<-rbind(pca_data_wild,pca_data_cul )
-qq<-ggplot() +
-  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
-  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
-  geom_point(data = pca_data, aes(x=Dim.1, y=Dim.2), size = 2.5) +
-  xlab("PC1: 27%") + ylab("PC2: 10%") +
-  guides(color=guide_legend(title="Group")) +
-  theme_bw(base_size = 11, base_family = "Times") +
-  theme(panel.background = element_blank(), legend.background = element_blank(), panel.grid = element_blank(), plot.background = element_blank(), legend.text=element_text(size=rel(.8)), strip.text = element_text(size=11))
-qq
+wild_cult_pred<-rbind(Tab_wild, Tab_cultivar)
+wild_cult_pred$group <- as.factor(wild_cult_pred$group)
 
-data_pca_flow <- read.delim("PCA_GEA_flow_class_cultivar.txt", 
-                            header = TRUE, 
-                            na.strings = c("NA", ""), 
-                            stringsAsFactors = FALSE, 
-                            fill = TRUE)
-data_pca_flow <- na.omit(data_pca_flow)
+arrow_scale <- 0.5  
 
-qq <- ggplot() +
-  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
-  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), linewidth=0.6) +
-  geom_point(data = pca_wild_cult, 
-             aes(x = Dim.1, y = Dim.2, fill = group), 
-             size = 3.5, shape = 21, color = "black", stroke = 0.5) +
-  scale_fill_manual(values = c("purple", "darkblue", "lightgrey", "lightblue", "darkgreen", "darkorange")) +
-  xlab("PC1: 15%") + ylab("PC2: 7%") +
-  guides(fill = guide_legend(title = "Group")) +
+ll <- ggplot() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = gray(0.8), size = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = gray(0.8), size = 0.6) +
+  geom_point(data = wild_cult_pred, aes(x = RDA1, y = RDA2, color = group), size = 2.5) +
+  #scale_shape_manual(values = c(24,21))+
+  scale_color_manual(values = c('#E69F00', "lightgrey")) +
+  geom_segment(data = TAB_var, 
+               aes(x = 0, y = 0, xend = RDA1 * arrow_scale, yend = RDA2 * arrow_scale),
+               arrow = arrow(length = unit(0.20, "cm"), type = "closed"),
+               color = "black", size = 0.15) +
+  geom_label_repel(data = TAB_var, 
+                   aes(x = RDA1 * arrow_scale, y = RDA2 * arrow_scale, label = row.names(TAB_var)),
+                   size = 3, family = "Times") +
+  xlab("RDA 1: 68%") + 
+  ylab("RDA 2: 11%") +
+  labs(title = "RDA Cultivar and Spatial Pixel Predictions") +
   theme_bw(base_size = 11, base_family = "Times") +
   theme(
-    panel.background = element_blank(), 
-    legend.background = element_blank(), 
-    panel.grid = element_blank(), 
-    plot.background = element_blank(), 
-    legend.text = element_text(size = rel(.8)), 
-    strip.text = element_text(size = 11)
+    panel.background  = element_blank(),
+    plot.background   = element_blank(),
+    legend.background = element_blank(),
+    panel.grid        = element_blank(),
+    legend.text       = element_text(size = rel(0.8)),
+    strip.text        = element_text(size = 11)
   )
+ll
 
-qq
+ggsave(
+  filename = "biplot_CUL-spatial.png",
+  plot = ll,      # Optional if last plot was your desired one
+  width = 5.2,             # In inches (default)
+  height = 4,             # In inches
+  units = "in",           # Can be "in", "cm", or "mm"
+  dpi = 300               # Resolution (important for publications)
+)
 
-boxplot(Dim.2 ~ group, data = pca_data_cul)
-model<-lm(Dim.2 ~ group, data = pca_data_cul)
-summary(model)
 ```
-![image](https://github.com/user-attachments/assets/ff9beb55-5451-460f-9973-7a77fb4b7f49)
-> The plot shows that among the cultivated group, the genetic diversity explained by GEA QTLs differentiate early genotype from late genotype. Genotypes flowering classes derived from the work of Omar https://www.mdpi.com/2073-4395/12/12/2975
+<img width="468" height="375" alt="image" src="https://github.com/user-attachments/assets/12ee28b5-b4e2-4cc5-bbf6-5b6328cda023" />
+
 
 We can use the predicted position of each singol cultivar to predict the current spatial offset in the olive niche. The current spatial genomic offset is calcolated as quadratic distance between the two predicted point in the RDA space
 
