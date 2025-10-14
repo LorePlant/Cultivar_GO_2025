@@ -327,8 +327,10 @@ qq
 As first step we are going to imputate the genotypic vcf.file and apply filter of maf 0.05. To ensure comparability, the environmental variable distributions will be scaled to achieve a mean of 0 and a standard deviation of 1.
 
 ```
-#I enter the vcf file I have that ionclude wild east and wild west
-geno155 <- read.vcfR("D:/vcf_file_GEA_leccino/WC156_lec24_DP10_100_miss090_ind085_mac1_MAF005.vcf.recode.vcf")#import vcf file
+#-------------
+#enter vcf file
+#--------------
+geno155 <- read.vcfR("D:/D/vcf_file_GEA_leccino/WC156_lec24_DP10_100_miss090_ind085_mac1_MAF005.vcf.recode.vcf")#import vcf file
 GI <- vcfR2genind(geno155)#transfrom file in genind object
 geno155<-as.data.frame(GI)
 geno155<-geno155%>% dplyr::select(ends_with(".0"))
@@ -338,10 +340,44 @@ for (i in 1:ncol(geno155))
   geno155[which(is.na(geno155[,i])),i] <- median(geno155[-which(is.na(geno155[,i])),i], na.rm=TRUE)
 }
 geno155_data<- write.table(geno155, "geno_155.txt")
-geno155<-read.table("D:/vcf_file_GEA_leccino/geno_155.txt")
+geno155<-fread("D:/D/vcf_file_GEA_leccino/geno_155.txt")
+geno155 <- as.data.frame(geno155)  # rownames only work on data.frame, not data.table
+rownames(geno155) <- geno155[[1]]  # assign first column as row names
+geno155 <- geno155[ , -1]          # remove the first column
 
-# filter the 142 wild West and apply maf 0.05
+##### Wilde East
+listWE<-read.table("list_WE.txt")
+genoWE<- geno155[rownames(geno155)%in% listWE$V1, ]
+
+#---------------------
+#Environlent Wild Weast
+#---------------------
+
+data_wild<- read.csv("Env_155_WWE.csv", header = TRUE)
+data_wild <- data_wild %>%
+  mutate(LAT_classes = cut(lat,
+                           breaks = c(-Inf, 35, 40, 45),
+                           labels = c("low_lat", "med_lat", "high_lat"),
+                           right = FALSE))
+
+# centering 
+list142WW<-read.table("list142WW.txt")
+dataWild_142W <- data_wild[data_wild$id%in% list142WW$V1, ]
+test_env <- dataWild_142W[, c("bio2", "bio10", "bio11", "bio15", "bio18", "bio19", "clay", "N", "pH", "sand")]
+Env <- scale(test_env, center=TRUE, scale=TRUE)
+# Extract the centering values
+env_center <- attr(Env, "scaled:center")
+# Extract the scaling values
+env_scale <- attr(Env, "scaled:scale")
+#transform into dataset
+Env <- as.data.frame(Env)
+Variables_142WW<-data.frame(geno=dataWild_142W$id,group = dataWild_142W$group, region = dataWild_142W$region, lat_classes = dataWild_142W$LAT_classes, lat = dataWild_142W$lat,  Env )
+
 genoWW<- geno155[rownames(geno155)%in% list142WW$V1, ]
+
+#-------------
+#maf filtering
+#------------
 
 Y <- genoWW
 # Function to calculate MAF for each column (SNP)
@@ -359,24 +395,8 @@ maf_threshold <- 0.05
 genoWW_maf <- genoWW[, maf_values >= maf_threshold]
 
 write.table(genoWW_maf,"genoWW_maf.txt")
-genoWW_maf<-read.table("genoWW_maf.txt")
 
 
-# Wild Environment datafile
-
-data_wild<- read.csv("Env_155_WWE.csv", header = TRUE)
-
-list142WW<-read.table("list142WW.txt") #list with 142 wild west
-dataWild_142W <- data_wild[data_wild$id%in% list142WW$V1, ]
-test_env <- dataWild_142W[, c("bio2", "bio10", "bio11", "bio15", "bio18", "bio19", "clay", "N", "pH", "sand")]
-Env <- scale(test_env, center=TRUE, scale=TRUE)
-# Extract the centering values
-env_center <- attr(Env, "scaled:center")
-# Extract the scaling values
-env_scale <- attr(Env, "scaled:scale")
-#transform into dataset
-Env <- as.data.frame(Env)
-Variables_142WW<-data.frame(geno=dataWild_142W$id,group = dataWild_142W$group, region = dataWild_142W$region, Env )
 
 ```
 Check Variance Inflation Factor (VIF) of selected environmental variable from RDA model.
@@ -436,25 +456,33 @@ In total we identified 255 QTLs
 
 We used the RDA framework to construct a genomic offset model to predict the adaptation of new spatial locations and novel genotypes (cultivars). To achive this initially we selected among the 255 QTLs those one that are polymorphic across the cultivar population (maf>0.05), obtaining a total of 124 SNPs. Subsequently we used these 124 SNPs to run an enriched RDA.
 
-Define the 124 GEA QTL
 ```
 list_255<-read.table("listGEA_255.txt",  header=TRUE)
 GEA_lfmm_255<-  genoWW_maf[, colnames(genoWW_maf)%in% list_255$SNP]
 write.table(GEA_lfmm_255, "GEA_lfmm_all_var_255.txt")
 GEA_lfmm_all_var<-read.table("GEA_lfmm_all_var_255.txt")
 
-GEA_124<- GEA_lfmm_all_var[, colnames(GEA_lfmm_all_var)%in% colnames(GEA_cultivars_maf)]
-write.table(GEA_124,"GEA_124_WW.txt")
-GEA_124<-read.table("GEA_124_WW.txt")
-```
-Selection of polymorphic GEA across cultivars
-```
+#----------------------------------------
+#Cultivars genetic data and GEA filtering
+#------------------------------------------
+
+#upload genotypic file whole collection
 geno_cultivar<- read.vcfR("D:/vcf_file_GEA_leccino/Cultivar_319_lec24_DP10_100_miss090_ind085_mac1.vcf.recode.vcf")
+
+
 GI <- vcfR2genind(geno_cultivar)#transform file in genind object
 geno_cultivar<-as.data.frame(GI)
 geno_cultivar <- dplyr::select(geno_cultivar, ends_with(".0"))
 
+
+
+GEA_lfmm_list<- read.table("GEA_lfmm_all_var_log5 (2).txt", header = T)
+GEA_lfmm_all_var<-  genoWW_maf[, colnames(genoWW_maf)%in% GEA_lfmm_list$SNP]
+write.table(GEA_lfmm_all_var, "GEA_lfmm_all_var.txt")
 GEA_lfmm_all_var<-read.table("GEA_lfmm_all_var.txt")
+list_bonf<-read.table("GEA_lfmm_all_var_Bonferroni.txt")
+GEA_lfmm_bonf<-  GEA_lfmm_all_var[, colnames(GEA_lfmm_all_var)%in% list_bonf$x]
+
 GEA <-colnames(GEA_lfmm_all_var)
 GEA_geno_cultivar<-dplyr::select(geno_cultivar, all_of(GEA))
 
@@ -463,6 +491,8 @@ for (i in 1:ncol(GEA_geno_cultivar))
 {
   GEA_geno_cultivar[which(is.na(GEA_geno_cultivar[,i])),i] <- median(GEA_geno_cultivar[-which(is.na(GEA_geno_cultivar[,i])),i], na.rm=TRUE)
 }
+
+## save GEA all varible
 write.table(GEA_geno_cultivar, "GEA_allWW_lfmm_all_cultivars.txt")
 
 
@@ -483,12 +513,13 @@ maf_values <- apply(GEA_cultivars, 2, calculate_maf)
 # Filter threshold, e.g., keep SNPs with MAF >= 0.05
 maf_threshold <- 0.05
 GEA_cultivars_maf <- GEA_cultivars[, maf_values >= maf_threshold]
-```
-Run RDA using the selected GEA QTL that are polymorphic across the cultivar populations
-```
+
 GEA_124<- GEA_lfmm_all_var[, colnames(GEA_lfmm_all_var)%in% colnames(GEA_cultivars_maf)]
 write.table(GEA_124,"GEA_124_WW.txt")
 GEA_124<-read.table("GEA_124_WW.txt")
+```
+Run RDA using the selected GEA QTL that are polymorphic across the cultivar populations
+```
 
 RDA_all_enriched<-rda(GEA_124 ~ bio2 + bio10 + bio11 + bio15	+ bio18 + bio19 + clay + N+ pH + sand , Variables_142WW)
 summary(eigenvals(RDA_all_enriched, model = "constrained"))
@@ -499,6 +530,28 @@ sqrt(vif.cca(RDA_all_enriched))
 Plot the RDA biplot. In this graphical representation I used _scaling = 2_ to graphically represent the location points.
 
 ```
+# plot Latitude range
+
+TAB_gen <- data.frame(geno = row.names(scores(RDA_all_enriched , display = "sites")), scores(RDA_all_enriched, display = "sites", scaling = "sites"))
+
+Geno <- merge(TAB_gen, Variables_142WW[, 1:5] ,by="geno")
+TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
+loading_geno_all_enriched_lat<-ggplot() +
+  geom_hline(yintercept=0, linetype="dashed", color = gray(.80), size=0.6) +
+  geom_vline(xintercept=0, linetype="dashed", color = gray(.80), size=0.6) +
+  geom_point(data = Geno, aes(x=RDA1, y=RDA2, fill = lat), linewidth = 2.5, shape = 21, color = "black", stroke = 0.8, size = 4) +
+  #scale_fill_manual(values = c("lightblue","darkgreen", "darkorange")) +
+  scale_fill_gradientn(colors = c("#d73027","#fc8d59", "#fee090", "#91bfdb", "#4575b4"), 
+                       name = "Latitude")+
+  geom_segment(data = TAB_var, aes(xend=RDA1, yend=RDA2, x=0, y=0), colour="black", linewidth =0.15, linetype=1, arrow=arrow(length = unit(0.02, "npc"))) +
+  geom_label_repel(data = TAB_var, aes(x=RDA1, y=RDA2, label = row.names(TAB_var)), size = 3.2, family = "Times") +
+  xlab("RDA 1: 68%") + ylab("RDA 2: 11%") +
+  guides(color=guide_legend(title="Latitude gradient")) +
+  theme_bw(base_size = 11, base_family = "Times") +
+  theme(panel.background = element_blank(), legend.background = element_blank(), panel.grid = element_blank(), plot.background = element_blank(), legend.text=element_text(size=rel(.8)), strip.text = element_text(size=11))
+  #labs(title = "enriched RDA")
+loading_geno_all_enriched_lat
+
 # plot Geographic regions
 
 TAB_gen <- data.frame(geno = row.names(scores(RDA_all_enriched , display = "sites")), scores(RDA_all_enriched, display = "sites", scaling = "sites"))
@@ -518,6 +571,9 @@ loading_geno_all_enriched_region<-ggplot() +
   labs(title = "enriched RDA")
 loading_geno_all_enriched_region
 ```
+
+<img width="556" height="445" alt="image" src="https://github.com/user-attachments/assets/85746eab-9894-4101-a42b-5625e6a983a0" />
+
 ![image](https://github.com/user-attachments/assets/d13ec740-e818-4c87-a2cd-c2d0f8108033)
 
 > The biplot shows that environmental differentiation among the 142 truly wild locations follows a latitudinal gradient, with French sites associated with higher summer precipitation, lower temperatures, and greater soil fertility, while Moroccan sites are characterized by higher temperatures, lower precipitation, and reduced fertility.
