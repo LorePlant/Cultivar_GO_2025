@@ -1265,3 +1265,93 @@ Although the overall variance explained was modest, the marked differentiation b
 
 Importantly, from the overall GEAs identified in the wild, we filtered those (GEAs) that were also polymorphic within cultivated germplasm. The correlation between these polymorphisms and flowering time suggests that the adaptive variation captured in cultivars may result from multiple evolutionary processes. These include parallel selection under similar environmental pressures, introgression from wild relatives during post-domestication period, and/or balancing selection maintaining functional diversity across both wild and cultivated gene pools.
 
+## Spatial GO of Wild located at the extreames of the niche
+
+We used the same RDA model to estimate the spatial offset of wild located at the extreames of the olive niche, in particular North Corse (F9) and south Morocco (M30)
+```
+#------------------------------------------------------------------------------------------------------
+#Spatial genomic offset of wild sample at the niche extreames. North Corse (F9) and south Morocco (M30)
+#------------------------------------------------------------------------------------------------------
+
+  F <- GEA_124[rownames(GEA_124) == "OES_F9_08_S16_L004", ]
+
+FRDA <- predict(RDA_all_enriched, newdata=F, type="wa")
+FRDA<-as.data.frame(FRDA)
+
+
+
+TAB_pixel_LC$offset <- (FRDA$RDA1 - TAB_pixel_LC$RDA1)^2 * 0.684 + 
+  (FRDA$RDA2 - TAB_pixel_LC$RDA2)^2 * 0.1095 + 
+  (FRDA$RDA3 - TAB_pixel_LC$RDA3)^2 * 0.06071+
+  (FRDA$RDA4 - TAB_pixel_LC$RDA4)^2 * 0.03739 
+hist(TAB_pixel_LC$offset)
+
+level1 <- quantile(TAB_pixel_LC$offset, probs = 0.10, na.rm = TRUE)
+level2 <- quantile(TAB_pixel_LC$offset, probs = 0.20, na.rm = TRUE)
+level3 <- quantile(TAB_pixel_LC$offset, probs = 0.30, na.rm = TRUE)
+level4 <- quantile(TAB_pixel_LC$offset, probs = 0.40, na.rm = TRUE)
+level5 <- quantile(TAB_pixel_LC$offset, probs = 0.50, na.rm = TRUE)
+level6 <- quantile(TAB_pixel_LC$offset, probs = 0.60, na.rm = TRUE)
+level7 <- quantile(TAB_pixel_LC$offset, probs = 0.70, na.rm = TRUE)
+level8 <- quantile(TAB_pixel_LC$offset, probs = 0.80, na.rm = TRUE)
+level9 <- quantile(TAB_pixel_LC$offset, probs = 0.90, na.rm = TRUE)
+
+
+
+# Compute breaks for the column
+sd_breaks <- c( min(TAB_pixel_LC$offset, na.rm = TRUE), level1, level2, level3, level4, level5, level6, level7, level8, level9, max(TAB_pixel_LC$offset, na.rm = TRUE))
+
+
+
+# Create a color palette from blue to yellow
+
+color_palette <- c(
+  "#004d00",  # very dark green
+  "#228B22",  # forest green
+  "#66C200",  # yellow-green
+  "#CCCC00",  # mustard yellow
+  "#FFD700",  # golden yellow
+  "#FFA500",  # orange
+  "#FF8C00",  # dark orange
+  "#FF4500",  # orange-red
+  "#B22222",  # firebrick
+  "#8B0000"   # dark red
+)
+
+# Assign colors based on quantiles
+TAB_pixel_LC$Foffset <- cut(TAB_pixel_LC$offset, breaks = sd_breaks, labels = color_palette)
+
+library(ggplot2)
+library(sf)
+library(rnaturalearth)
+
+# Load geographic boundaries of France, Spain, Morocco, Portugal, and Algeria
+countries <- ne_countries(scale = "medium", country = c("France", "Spain", "Morocco", "Portugal", "Algeria"), returnclass = "sf")
+
+# Remove French Guiana and Atlantic French territories
+countries <- countries[!(countries$geounit %in% c("French Guiana", "Guadeloupe", "Martinique", "Saint Pierre and Miquelon", 
+                                                  "Reunion", "Mayotte", "New Caledonia", "French Polynesia", 
+                                                  "Wallis and Futuna", "Saint Barthelemy", "Saint Martin")), ]
+
+# Convert TAB_pixel_LC to an sf object
+TAB_pixel_LC_sf <- st_as_sf(TAB_pixel_LC, coords = c("long", "lat"), crs = 4326)
+
+# Step 4: Plot the map with quantile-based color scale
+F9 <- ggplot(data = countries) +
+  geom_sf(fill = "#EBEBEB", color = "black") +
+  geom_sf(data = TAB_pixel_LC_sf, aes(color = TAB_pixel_LC$Foffset), size = 0.5, show.legend = FALSE) +
+  scale_color_manual(values = color_palette, name = "Offset Quantile") +
+  coord_sf(xlim = c(-15, 15), ylim = c(28, 52), expand = FALSE) +
+  theme_minimal() +
+  labs(title = "Adaptive Landscape F9") +
+  theme(
+    panel.background = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8)
+  )
+
+F9
+```
+<img width="948" height="741" alt="image" src="https://github.com/user-attachments/assets/a099f0f5-c45c-482a-a667-f54d34ac3408" />
+
