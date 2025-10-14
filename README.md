@@ -572,7 +572,8 @@ loading_geno_all_enriched_region<-ggplot() +
 loading_geno_all_enriched_region
 ```
 
-<img width="556" height="445" alt="image" src="https://github.com/user-attachments/assets/85746eab-9894-4101-a42b-5625e6a983a0" />
+<img width="741" height="593" alt="image" src="https://github.com/user-attachments/assets/0a8c2a17-bbaa-4800-8d56-feaf19df6f60" />
+> The biplot shows the model’s ability to capture adaptive patterns along a north–south latitudinal gradient. 
 
 ![image](https://github.com/user-attachments/assets/d13ec740-e818-4c87-a2cd-c2d0f8108033)
 
@@ -674,27 +675,67 @@ TAB_var <- as.data.frame(scores(RDA_all_enriched, choices=c(1,2), display="bp"))
 Graphical representation using RDA biplot and geographic map
 
 ```
-###### mapping adaptive landscape### map of GEA
+### mapping with palette
 
-# Extract RDA values
+library(ggplot2)
+library(ggrepel)
+
+# --- 1. Extract RDA axes ---
 a1 <- TAB_pixel_LC$RDA1
 a2 <- TAB_pixel_LC$RDA2
 
-# Compute the distance from the origin
-distance <- sqrt(a1^2 + a2^2)
+# --- 2. Calculate distance from origin ---
+dist_origin <- sqrt(a1^2 + a2^2)
+dist_norm <- (dist_origin - min(dist_origin)) / (max(dist_origin) - min(dist_origin))
 
-# Assign colors based on quadrants and the 5th sector (circle radius < 0.5)
-TAB_pixel_LC$color <- ifelse(distance < 0.25, "#717171",  # 5th sector - Purple
-                             ifelse(a1 > 0 & a2 > 0, "#377EB8",  # Quadrant 1 - Red
-                                    ifelse(a1 < 0 & a2 > 0, "red",  # Quadrant 2 - Blue
-                                           ifelse(a1 < 0 & a2 < 0, "#FF7F00",  # Quadrant 3 - Green
-                                                  "limegreen"))))  # Quadrant 4 - Orange
+# --- 3. Base color mapping ---
+# Red for negative RDA1
+red <- pmax(-a1, 0)
+# Blue for positive RDA1
+blue <- pmax(a1, 0)
+# Green for positive RDA2
+green <- pmax(a2, 0)
 
-# Update ggplot with quadrant-based colors and 5th sector
-pp <- ggplot() +
+# Normalize channels
+red <- (red - min(red)) / (max(red) - min(red) + 1e-6) * 255
+green <- (green - min(green)) / (max(green) - min(green) + 1e-6) * 255
+blue <- (blue - min(blue)) / (max(blue) - min(blue) + 1e-6) * 255
+
+# --- 4. Grey factor (distance-based saturation) --- 
+grey_factor <- dist_norm        # 0 = near origin, 1 = far
+grey_target <- 200             # lighter grey target (closer to white) used 220
+baseline_grey <- 0.3         # ensures center points are not black used 0.4
+
+# Apply a power transformation for vibrancy
+#red <- (red / 255) ^ 0.4 * 255
+#green <- (green / 255) ^ 0.4 * 255
+#blue <- (blue / 255) ^ 0.4 * 255
+
+
+# Exaggerate color intensity 1.2
+boost_factor <- 1.05
+red   <- pmin(((red   / 255) ^ 0.5) * 255 * boost_factor, 255)
+green <- pmin(((green / 255) ^ 0.5) * 255 * boost_factor, 255)
+blue  <- pmin(((blue  / 255) ^ 0.5) * 255 * boost_factor, 255)
+
+# Blend RGB toward grey
+r_adj <- (1 - grey_factor) * ((1 - baseline_grey) * red   + baseline_grey * grey_target) +
+         grey_factor * grey_target
+g_adj <- (1 - grey_factor) * ((1 - baseline_grey) * green + baseline_grey * grey_target) +
+         grey_factor * grey_target
+b_adj <- (1 - grey_factor) * ((1 - baseline_grey) * blue  + baseline_grey * grey_target) +
+         grey_factor * grey_target
+
+# Final RGB colors
+colors <- rgb(r_adj, g_adj, b_adj, maxColorValue = 255)
+
+# --- 5. Plot ---
+pp <- ggplot(as.data.frame(TAB_pixel_LC)) +
+  geom_point(aes(x = RDA1, y = RDA2),
+             color = colors,
+             size = 4, shape = 21, fill = colors, stroke = 0.2) +
   geom_hline(yintercept = 0, linetype = "dashed", color = gray(0.80), size = 0.6) +
   geom_vline(xintercept = 0, linetype = "dashed", color = gray(0.80), size = 0.6) +
-  geom_point(data = TAB_pixel_LC, aes(x = RDA1, y = RDA2, color = color), size = 2) +  # Use sector colors
   geom_segment(data = TAB_var, aes(xend = RDA1, yend = RDA2, x = 0, y = 0), 
                colour = "black", size = 0.15, linetype = 1, 
                arrow = arrow(length = unit(0.20, "cm"), type = "closed")) +
@@ -709,9 +750,18 @@ pp <- ggplot() +
         plot.background = element_blank(), 
         legend.text = element_text(size = rel(0.8)), 
         strip.text = element_text(size = 9)) +
-  scale_color_identity()  # Use predefined colors directly
+  scale_color_identity()
 
 pp
+
+ggsave(
+  filename = "biplot_landscape.png",
+  plot = pp,      # Optional if last plot was your desired one
+  width = 5,             # In inches (default)
+  height = 5,             # In inches
+  units = "in",           # Can be "in", "cm", or "mm"
+  dpi = 300               # Resolution (important for publications)
+)
 
 ## plot in geographic map
 
@@ -728,22 +778,44 @@ countries <- countries[!(countries$geounit %in% c("French Guiana", "Guadeloupe",
                                                   "Wallis and Futuna", "Saint Barthelemy", "Saint Martin")), ]
 
 # Convert TAB_pixel_LC to an sf object
-TAB_pixel_LC_sf <- st_as_sf(TAB_pixel_LC, coords = c("long", "lat"), crs = 4326)  # Assumes 'longitude' and 'latitude' columns exist
+TAB_pixel_LC_sf <- st_as_sf(TAB_pixel_LC,
+                            coords = c("long", "lat"),
+                            crs = 4326,
+                            remove = FALSE)  # Keeps original long/lat columns
 # Create the map
-map <- ggplot(data = countries) +
-  geom_sf(fill = "#EBEBEB", color = "black") +  # Countries' borders
-  geom_sf(data = TAB_pixel_LC_sf, aes(color = color), size = 0.05, show.legend = FALSE) +  # Points with custom colors
-  scale_color_identity() +  # Use exact colors from the 'color' column
-  coord_sf(xlim = c(-15, 15), ylim = c(28, 52), expand = FALSE) +  # Set geographic limits
-  theme_minimal() +
-  labs(title = "Adaptive Landscape") +
-  theme(panel.background = element_blank())
+library(scales)
 
-#jpeg(file = "C:/Users/rocchetti/Desktop/running RDA GO/adaptive_landscape_rgb.jpeg",width = 18, height = 14, units = "cm", res = 800)
+library(scales)
+
+# Embed alpha directly into your colors
+TAB_pixel_LC_sf$colors_alpha <- scales::alpha(colors, 1)
+
+map <- ggplot(data = countries) +
+  geom_sf(fill = "#EBEBEB", color = "black") +
+  geom_point(data = TAB_pixel_LC_sf, 
+             x = TAB_pixel_LC_sf$long, 
+             y = TAB_pixel_LC_sf$lat, 
+             color = TAB_pixel_LC_sf$colors_alpha,
+             size = 0.05, show.legend = FALSE) +
+  scale_color_identity() +
+  coord_sf(xlim = c(-15, 15), ylim = c(28, 52), expand = FALSE) +
+  theme_minimal() +
+  #labs(title = "Adaptive Landscape") +
+  theme(panel.background = element_blank())
 map
+
+ggsave(
+  filename = "adaptive_landscape_color.jpg",
+  plot=map,
+  dpi=300,
+  width = 5,
+  height = 7,
+  units = 'in'
+)
 ```
 
-![image](https://github.com/user-attachments/assets/587c2a14-cf53-4d79-b0ef-e68801acaac7)
+<img width="890" height="494" alt="image" src="https://github.com/user-attachments/assets/2b898cb3-8519-41c9-ae52-3c0bab80d9df" />
+
 
 ## Cultivar Genomic offset
 
