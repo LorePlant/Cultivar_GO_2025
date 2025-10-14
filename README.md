@@ -989,16 +989,21 @@ We can use the predicted position of each singol cultivar to predict the current
 
 ```
 
-F <- GEA_cultivars[rownames(GEA_cultivars) == "Istarska_crnica1", ]
+###### Frantoio
+
+F <- GEA_cultivars[rownames(GEA_cultivars) == "Leccino", ]
 
 FRDA <- predict(RDA_all_enriched, newdata=F, type="wa")
 FRDA<-as.data.frame(FRDA)
+
+
 
 TAB_pixel_LC$offset <- (FRDA$RDA1 - TAB_pixel_LC$RDA1)^2 * 0.684 + 
   (FRDA$RDA2 - TAB_pixel_LC$RDA2)^2 * 0.1095 + 
   (FRDA$RDA3 - TAB_pixel_LC$RDA3)^2 * 0.06071+
   (FRDA$RDA4 - TAB_pixel_LC$RDA4)^2 * 0.03739 
   hist(TAB_pixel_LC$offset)
+
 
 #TAB_pixel_LC$Frantoio_offset<-scale(TAB_pixel_LC$Frantoio_offset, center = intersection_x, scale = sd(results_df$GO))
 #hist(TAB_pixel_LC$Frantoio_offset)
@@ -1014,8 +1019,11 @@ TAB_pixel_LC$offset <- (FRDA$RDA1 - TAB_pixel_LC$RDA1)^2 * 0.684 +
   level9 <- quantile(TAB_pixel_LC$offset, probs = 0.90, na.rm = TRUE)
   
   
+  
   # Compute breaks for the column
   sd_breaks <- c( min(TAB_pixel_LC$offset, na.rm = TRUE), level1, level2, level3, level4, level5, level6, level7, level8, level9, max(TAB_pixel_LC$offset, na.rm = TRUE))
+  
+  
   
   # Create a color palette from blue to yellow
   
@@ -1051,25 +1059,37 @@ TAB_pixel_LC$offset <- (FRDA$RDA1 - TAB_pixel_LC$RDA1)^2 * 0.684 +
   TAB_pixel_LC_sf <- st_as_sf(TAB_pixel_LC, coords = c("long", "lat"), crs = 4326)
   
   # Step 4: Plot the map with quantile-based color scale
-  map <- ggplot(data = countries) +
+  Leccino_map <- ggplot(data = countries) +
     geom_sf(fill = "#EBEBEB", color = "black") +
-    geom_sf(data = TAB_pixel_LC_sf, aes(color = TAB_pixel_LC$Foffset), size = 0.5, show.legend = FALSE) +
+    geom_sf(data = TAB_pixel_LC_sf, aes(color = TAB_pixel_LC$Foffset), size = 0.05, show.legend = FALSE) +
     scale_color_manual(values = color_palette, name = "Offset Quantile") +
     coord_sf(xlim = c(-15, 15), ylim = c(28, 52), expand = FALSE) +
     theme_minimal() +
-    labs(title = "Adaptive Landscape Aggezi_Akse1") +
+    labs(title = "Adaptive Landscape Karme") +
     theme(
       panel.background = element_blank(),
       legend.position = "right",
-      legend.title = element_text(size = 10),
-      legend.text = element_text(size = 8)
+      legend.title = element_text(size = 8),
+      legend.text = element_text(size = 6)
     )
   
-map
-```
-![image](https://github.com/user-attachments/assets/c8b4c02a-5ff1-474b-a52e-451fcfb2d72f)
 
-> Here is an example of spatial genomic offset estimated for four cultivars. The two cultivars at the top, Frantoio and Razzaio, originate from the northern shore of the Mediterranean (Tuscany, Italy), while the two at the bottom, Karme and Berri Meslal, originate from southern latitudes in Egypt and Morocco, respectively. The results show that the model effectively captured the adaptive responses along the latitudinal gradient, highlighting that cultivars originating from the northern and southern Mediterranean shores are more adaptive to the northern and southern regions of our study area, respectively
+
+cultivar_offset<- ggarrange(Picholine2_map, Picual2_map, Manzanilla_map, Picholine_Marocaine2_map, nrow=2, ncol=2 )
+cultivar_offset<- (Picholine2_map+Picual2_map)/ (Manzanilla_Cacerena_map + Picholine_Marocaine2_map)
+ggsave(
+  filename = " Karme_map.jpg",
+  plot= Karme_map,
+  dpi=300,
+  width = 5,
+  height = 7,
+  units = 'in'
+)
+```
+<img width="2317" height="630" alt="image" src="https://github.com/user-attachments/assets/f860921b-68d2-46cf-a00e-e59835701e92" />
+
+
+> Here is an example of spatial genomic offset estimated for four cultivars. The first two cultivars from the left, Frantoio and Razzaio, originate from the northern shore of the Mediterranean (Tuscany, Italy), while the last two, Aggezi-Akse and Beladi-577, originate from southern latitudes in Egypt and lebanon, respectively. The results show that the model effectively captured the adaptive responses along the latitudinal gradient, highlighting that cultivars originating from the northern and southern Mediterranean shores are more adaptive to the northern and southern regions of our study area, respectively
 
 
 ## Offset validation with flowering data from WOGBM
@@ -1080,6 +1100,8 @@ Given the combined influence of chilling and forcing temperatures on floral init
 ```
 # Define the target latitude and longitude
 target_lat <- 31.816095
+
+
 target_long <- -7.60
 
 # Define a tolerance value (small range of acceptable difference)
@@ -1100,29 +1122,44 @@ RDAscore_cul$offsetM <- (Marrakech_row$RDA1 - RDAscore_cul$RDA1)^2 * 0.684 +
   (Marrakech_row$RDA2 - RDAscore_cul$RDA2)^2 * 0.1095 + 
   (Marrakech_row$RDA3 - RDAscore_cul$RDA3)^2 * 0.06071 + 
   (Marrakech_row$RDA4 - RDAscore_cul$RDA4)^2 * 0.03739
-GoMar<-write.table(RDAscore_cul, "Go_Mar.txt")
-```
-Adjust the table with the flowering data from the Abou-Saaid et al 2022 publication
 
-```
+
+GoMar<-write.table(RDAscore_cul, "Go_Mar.txt")
+
+
+
+## Wild offset in Marrakesh
+RDA_wild<-as.data.frame(RDA_wild)
+
+RDA_wild$offsetM <- (Marrakech_row$RDA1 - RDA_wild$RDA1)^2 * 0.684 + 
+  (Marrakech_row$RDA2 - RDA_wild$RDA2)^2 * 0.1095 + 
+  (Marrakech_row$RDA3 - RDA_wild$RDA3)^2 * 0.06071 + 
+  (Marrakech_row$RDA4 - RDA_wild$RDA4)^2 * 0.03739
+
+
 GoMar<-read.csv("GO_marakesh.csv")
 GoMar <- na.omit(GoMar)
 
-boxplot(GO ~ class, data = GoMar)
+boxplot(GO ~ class, data = GoMar) 
 library(ggplot2)
 
-ggplot(GoMar, aes(x = class, y = GO, fill = class)) +
+# Set factor levels in the desired order
+GoMar$class <- factor(GoMar$class, levels = c("early_blooming", "mid_blooming", "late_blooming"))
+
+# Plot
+a<-ggplot(GoMar, aes(x = class, y = GO, fill = class)) +
   geom_boxplot() +
-  scale_fill_manual(values = c("purple", "darkblue", "lightgrey")) +
+  scale_fill_manual(values = c("purple", "lightgrey", "darkblue")) +
   theme_minimal() +
   labs(title = "GO by Class",
        x = "Class",
        y = "GO") +
   theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    axis.text.x = element_text(angle = 0, hjust = 0.5)
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1)
   )
-model <- lm(GO ~ class, data = GoMar)
+a
+model <- lm(logGO ~ class, data = GoMar)
 
 summary(model)
 
@@ -1134,29 +1171,94 @@ library(multcomp)
 
 hist(GoMar$FFD)
 abline(v = c(120, 126), col = "red", lwd = 2, lty = 2)
+b<-ggplot(GoMar, aes(x = FFD)) +
+  geom_histogram(binwidth = 1, fill = "grey", color = "black") +
+  #geom_vline(xintercept = c(120, 126), color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(title = "FFD distribution",
+       x = "FFD",
+       y = "Count") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 12)
+  )
 
+b
+plot(logGO ~ FFD, data = GoMar)
 
-plot(GO ~ FFD, data = GoMar)
-
-model <- lm(GO ~ FFD, data = GoMar)
-abline(model, col = "red", lwd = 2)
+model <- lm(GO ~ logFFD, data = GoMar)
+#abline(model, col = "red", lwd = 2)
 summary(model)
 
-ggplot(GoMar, aes(x = FFD, y = GO, fill = class)) +
-  geom_point(shape = 21, size = 2.5, color = "black", alpha = 0.8) +
+c<-ggplot(GoMar, aes(x = logFFD, y = GO)) +
+  geom_point(shape = 21, size = 5, color = "black", fill = "grey", alpha = 0.8) +
   geom_abline(intercept = coef(model)[1], slope = coef(model)[2],
               color = "red", linetype = "solid", linewidth = 1.2) +
-  scale_fill_manual(values = c("purple", "darkblue", "lightgrey")) +
+  #scale_fill_manual(values = c("purple", "lightgrey", "darkblue")) +
   theme_minimal() +
   labs(title = "GO vs FFD by Class",
-       x = "FFD",
+       x = "log(FFD)",
        y = "GO",
        fill = "Class") +
   theme(
-    plot.title = element_text(hjust = 0.5, face = "bold")
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 12)
   )
+c
+
+library(ggpubr)
+d<-ggarrange(b,c, nrow = 1, ncol=2)
+d
+
+ggsave("GO_vs_FFD_by_Class.jpg", plot = d, width = 7, height = 5, dpi = 300)
+ggsave("pheno_ev.jpg", plot = d, width = 6, height = 3, dpi = 300)
+
+
+## plot in geographic map
+
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+# Load geographic boundaries of France, Spain, Morocco, Portugal, and Algeria
+countries <- ne_countries(scale = "medium", country = c("France", "Spain", "Morocco", "Portugal", "Algeria"), returnclass = "sf")
+
+# Remove French Guiana and Atlantic French territories
+countries <- countries[!(countries$geounit %in% c("French Guiana", "Guadeloupe", "Martinique", "Saint Pierre and Miquelon", 
+                                                  "Reunion", "Mayotte", "New Caledonia", "French Polynesia", 
+                                                  "Wallis and Futuna", "Saint Barthelemy", "Saint Martin")), ]
+
+
+# Define the specific latitude and longitude
+latitude <- 31.80403
+longitude <- -7.60 
+
+# Create a data frame with the point
+highlight_point <- data.frame(
+  lon = longitude,
+  lat = latitude
+)
+
+# Convert to sf object
+highlight_point_sf <- st_as_sf(highlight_point, coords = c("lon", "lat"), crs = 4326)
+
+
+# Create the map with continuous legend
+map <- ggplot(data = countries) +
+  geom_sf(fill = "#EBEBEB", color = "black") +
+  geom_sf(data = highlight_point_sf, color = "red", shape = 17, size = 4)+  # shape = 17 for triangle
+  coord_sf(xlim = c(-15, 15), ylim = c(28, 52), expand = FALSE) +
+  theme_minimal() +
+  labs(title = "WOGBM collection sites") +
+  theme(
+    panel.background = element_blank(),
+    legend.position = "right",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8)
+  )
+map
+
 ```
-![image](https://github.com/user-attachments/assets/8458fd86-255a-4357-8a56-c5d51df12d91)
+<img width="1001" height="399" alt="image" src="https://github.com/user-attachments/assets/4512652f-0264-42ce-b06b-083f05eab0ee" />
+
 
 Results show a significant correlation between flowering time and Genomic offset. While the overall variance explained by the model was modest (R² ≈ 5%), we observed a strong and statistically significant difference between early- and late-flowering cultivar classes.
 Although the overall variance explained was modest, the marked differentiation between early- and late-flowering cultivars supports the biological relevance of the predictions.
