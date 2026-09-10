@@ -14,12 +14,12 @@ Scripts are numbered in the order they are meant to be run. Each stage takes the
 
 | File | Description |
 |---|---|
-| `00_filtering_vcf.txt` | `vcftools` command log for raw SNP filtering (depth, quality, missingness, biallelic sites), individual-missingness filtering, sample removal, and minor-allele-count filtering of the wild + cultivated olive VCF. |
-| `01_Pop_structure_triangularR.R` | Population structure analysis: genotype import (`vcfR`), conversion to `.geno` format, `sNMF` ancestry estimation (K = 1–10) with cross-entropy model selection, ancestry barplots by K, identification of genuinely wild individuals from admixture proportions (q > 0.6 / 0.7 / 0.8 thresholds), hybrid index / heterozygosity triangle plots (`triangulaR`) to distinguish wild, admixed, and cultivated genotypes, and PCA of genetic variation. |
-| `02_Environmental_niche_model.R` | Species Distribution / Environmental Niche Modelling with `biomod2`: bioclimatic and soil raster assembly, pseudo-absence generation, single-algorithm modelling (GLM, RF, MAXENT, MAXNET), model evaluation and variable importance, ensemble modelling, and projection of the current suitable niche across the western Mediterranean. Includes a sensitivity analysis of the suitability threshold (70th/80th/90th percentile) used to define the modelled niche extent. |
-| `03_GEA_landscape_genomics_cultivar_offest.R` | Core landscape genomics pipeline: LFMM2 genotype-environment association on the wild dataset (latent-factor correction, FDR/Bonferroni candidate SNP detection, Manhattan plots), enriched RDA model (loci polymorphic in both wild and cultivated compartments) constrained by climate and soil variables, variance partitioning (environment vs. geography), prediction of wild and cultivar genotypes into RDA space, calculation of spatial genomic offset ("Cultivar Genomic Offset") for individual cultivars against the wild-derived model, geographic mapping of offset surfaces, and permutation tests assessing whether a cultivar's low-offset (best-adapted) region is more spatially/latitudinally specific than expected from randomized genotypes. |
-| `04_Sensitivity_analysis.R` | Robustness checks re-running the wild-genome GEA/RDA/offset workflow under alternative wild-genotype ancestry thresholds (e.g., q > 0.6 vs. q > 0.8) to confirm that candidate loci and offset predictions are not sensitive to how "genuinely wild" individuals are defined. |
-| `05_gene_function.R` | Functional annotation of candidate adaptive loci: matching GEA SNP positions to genes within a ±100 kb window using the reference GFF, and screening resulting gene annotations against an abiotic-stress-related keyword set to flag candidate genes potentially involved in climate adaptation. |
+| `00_filtering_vcf.txt` | SNP and sample quality filtering of the wild + cultivated olive VCF using `vcftools`. |
+| `01_Pop_structure_triangularR.R` | Population structure and hybridization analysis, used to identify genuinely wild individuals for the landscape genomics model. |
+| `02_Environmental_niche_model.R` | Environmental Niche Modelling of the species' current distribution, including a sensitivity analysis of the niche extent threshold. |
+| `03_GEA_landscape_genomics_cultivar_offest.R` | Core landscape genomics pipeline: genotype-environment association, RDA model construction, and calculation and mapping of Cultivar Genomic Offset, with permutation tests of its spatial patterns. |
+| `04_Sensitivity_analysis.R` | Robustness checks of the GEA/RDA/offset workflow under alternative definitions of the wild reference sample. |
+| `05_gene_function.R` | Functional annotation of candidate adaptive loci and screening for genes linked to abiotic-stress response. |
 
 ## Workflow overview
 
