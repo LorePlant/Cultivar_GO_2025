@@ -1,3 +1,8 @@
+##-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Gene function analysis; The input annotation file: Olea_europaea_cv_Leccino.gff3.gz available from the Olive genome hub (https://olive-genome-hub.climolivemed.com/organisms/3)
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 setwd("D:/C/Desktop/Leccino24/Landscape_156WWE")
 
 library(fit.models)
