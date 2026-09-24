@@ -41,9 +41,12 @@ Scripts are numbered in the order they are meant to be run. Each stage takes the
 
 ## Data
 
-Raw genomic data consist of whole-genome resequencing of 27 wild olive populations and a panel of cultivated olive accessions, jointly genotyped against the olive reference genome. Environmental layers are bioclimatic (WorldClim-derived: bio2, bio10, bio11, bio15, bio18, bio19) and soil (nitrogen, pH, clay, sand content) rasters covering the western Mediterranean (southern France, Corsica, Spain, Morocco, Portugal, Algeria).
+Data are available in the **[Figshare deposit — DOI: 10.6084/m9.figshare.33936442](https://doi.org/10.6084/m9.figshare.33936442)**.
 
-Raw sequence data, VCF files, and raster layers are not included in this repository due to size; paths in the scripts point to their storage location on the CIRAD CLIMOLIVEMED project server and will need to be updated to reproduce the analysis on a different system.
+The deposit contains the primary genomic dataset, candidate locus lists, fitted landscape genomic model, environmental predictor data, and environmental raster layers used in the genotype–environment association (GEA) and Redundancy Analysis (RDA)-based landscape genomic and Cultivar Genomic Offset analyses reported in the associated manuscript.
+
+Raw sequence data are available from the **[European Nucleotide Archive (ENA) — Project PRJEB61410](https://www.ebi.ac.uk/ena/browser/view/PRJEB61410?from=hub)** within the ClimOliveMed project.
+
 
 ## Requirements
 
